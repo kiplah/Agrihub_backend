@@ -13,6 +13,9 @@ import requests
 import json
 import time
 from datetime import datetime
+import random
+from django.core.mail import send_mail
+from django.conf import settings
 
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -32,21 +35,27 @@ class UserViewSet(viewsets.ModelViewSet):
 
         try:
             user = User.objects.get(email=email)
-            # user.is_active = True # If we were using activation
-            # user.save()
             
-            refresh = RefreshToken.for_user(user)
-            
-            return Response({
-                'message': 'User verified and registered',
-                'event': {
-                    'token': str(refresh.access_token),
-                    'Role': user.role,
-                    'ID': user.id,
-                    'Email': user.email,
-                    'Username': user.username
-                }
-            }, status=status.HTTP_200_OK)
+            if user.verification_code == code:
+                user.verification_code = None # Clear code after successful verification
+                user.is_active = True
+                user.save()
+                
+                refresh = RefreshToken.for_user(user)
+                
+                return Response({
+                    'message': 'User verified and registered',
+                    'event': {
+                        'token': str(refresh.access_token),
+                        'Role': user.role,
+                        'ID': user.id,
+                        'Email': user.email,
+                        'Username': user.username
+                    }
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({'message': 'Invalid verification code'}, status=status.HTTP_400_BAD_REQUEST)
+
         except User.DoesNotExist:
             return Response({'message': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -56,6 +65,26 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
+            user.is_active = False # Deactivate until verified
+            
+            # Generate verification code
+            code = str(random.randint(100000, 999999))
+            user.verification_code = code
+            user.save()
+            
+            # Send email
+            try:
+                send_mail(
+                    'AgroMart Verification Code',
+                    f'Your verification code is: {code}',
+                    'noreply@agromart.com',
+                    [user.email],
+                    fail_silently=False,
+                )
+            except Exception as e:
+                print(f"Error sending email: {e}")
+                # In production, might want to handle this better
+            
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
