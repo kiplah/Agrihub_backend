@@ -14,9 +14,42 @@ import json
 import time
 from datetime import datetime
 
+from rest_framework_simplejwt.tokens import RefreshToken
+
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+
+    @action(detail=False, methods=['post'])
+    def verify(self, request):
+        email = request.data.get('email')
+        code = request.data.get('code')
+        
+        # Mock verification logic
+        # In production, check code against cache/DB
+        if not email or not code:
+             return Response({'message': 'Email and code required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(email=email)
+            # user.is_active = True # If we were using activation
+            # user.save()
+            
+            refresh = RefreshToken.for_user(user)
+            
+            return Response({
+                'message': 'User verified and registered',
+                'event': {
+                    'token': str(refresh.access_token),
+                    'Role': user.role,
+                    'ID': user.id,
+                    'Email': user.email,
+                    'Username': user.username
+                }
+            }, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            return Response({'message': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
 
     @action(detail=False, methods=['post'])
     def signup(self, request):
