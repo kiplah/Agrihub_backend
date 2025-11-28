@@ -77,7 +77,7 @@ class UserViewSet(viewsets.ModelViewSet):
                 send_mail(
                     'AgroMart Verification Code',
                     f'Your verification code is: {code}',
-                    'noreply@agromart.com',
+                    settings.DEFAULT_FROM_EMAIL,
                     [user.email],
                     fail_silently=False,
                 )
