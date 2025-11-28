@@ -29,8 +29,8 @@ class UserViewSet(viewsets.ModelViewSet):
         email = request.data.get('email')
         code = request.data.get('code')
         
-        # Mock verification logic
-        # In production, check code against cache/DB
+        print(f"DEBUG: Verify called with email='{email}', code='{code}'")
+
         if not email or not code:
              return Response({'message': 'Email and code required'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -63,6 +63,25 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def signup(self, request):
+        email = request.data.get('email')
+        existing_user = User.objects.filter(email=email).first()
+
+        if existing_user:
+            if existing_user.is_active:
+                return Response({'message': 'User with this email already exists'}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                # Resend verification code
+                user = existing_user
+                code = str(random.randint(100000, 999999))
+                user.verification_code = code
+                user.save()
+                
+                success, error = send_verification_email(user.email, code)
+                if not success:
+                    print(f"Error sending email: {error}")
+                
+                return Response(UserSerializer(user).data, status=status.HTTP_200_OK)
+
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
