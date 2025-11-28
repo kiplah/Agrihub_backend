@@ -141,11 +141,6 @@ REST_FRAMEWORK = {
 
 
 # Email Configuration
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp-relay.brevo.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv('BREVO_FROM_EMAIL')
-EMAIL_HOST_PASSWORD = os.getenv('BREVO_API_KEY')
-DEFAULT_FROM_EMAIL = os.getenv('BREVO_FROM_NAME') + ' <' + os.getenv('BREVO_FROM_EMAIL') + '>'
+# Using Brevo API via utils.py
+
 

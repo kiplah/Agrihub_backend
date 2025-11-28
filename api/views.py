@@ -16,6 +16,7 @@ from datetime import datetime
 import random
 from django.core.mail import send_mail
 from django.conf import settings
+from .utils import send_verification_email
 
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -73,16 +74,9 @@ class UserViewSet(viewsets.ModelViewSet):
             user.save()
             
             # Send email
-            try:
-                send_mail(
-                    'AgroMart Verification Code',
-                    f'Your verification code is: {code}',
-                    settings.DEFAULT_FROM_EMAIL,
-                    [user.email],
-                    fail_silently=False,
-                )
-            except Exception as e:
-                print(f"Error sending email: {e}")
+            success, error = send_verification_email(user.email, code)
+            if not success:
+                print(f"Error sending email: {error}")
                 # In production, might want to handle this better
             
             return Response(serializer.data, status=status.HTTP_201_CREATED)
