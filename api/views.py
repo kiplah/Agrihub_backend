@@ -29,8 +29,6 @@ class UserViewSet(viewsets.ModelViewSet):
         email = request.data.get('email')
         code = request.data.get('code')
         
-        print(f"DEBUG: Verify called with email='{email}', code='{code}'")
-
         if not email or not code:
              return Response({'message': 'Email and code required'}, status=status.HTTP_400_BAD_REQUEST)
 
