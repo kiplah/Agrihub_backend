@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth import authenticate, login, logout
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.db.models import Sum, Count
 from .models import User, Product, ProductCategory, Order, Review, SellerAbout
 from .serializers import (
@@ -119,7 +120,12 @@ class UserViewSet(viewsets.ModelViewSet):
             user = authenticate(username=user_obj.username, password=password)
             if user:
                 login(request, user)
-                return Response(UserSerializer(user).data)
+                refresh = RefreshToken.for_user(user)
+                return Response({
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                    'user': UserSerializer(user).data
+                })
         except User.DoesNotExist:
             pass
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
