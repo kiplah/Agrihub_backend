@@ -19,6 +19,9 @@ from django.conf import settings
 from .utils import send_verification_email
 
 from rest_framework_simplejwt.tokens import RefreshToken
+from .services import EmailService
+from datetime import timedelta
+from django.utils import timezone
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -36,7 +39,12 @@ class UserViewSet(viewsets.ModelViewSet):
             user = User.objects.get(email=email)
             
             if user.verification_code == code:
-                user.verification_code = None # Clear code after successful verification
+                # Check expiration
+                if user.verification_code_expires_at and timezone.now() > user.verification_code_expires_at:
+                    return Response({'message': 'Verification code expired'}, status=status.HTTP_400_BAD_REQUEST)
+
+                user.verification_code = None
+                user.verification_code_expires_at = None
                 user.is_active = True
                 user.save()
                 
@@ -72,9 +80,10 @@ class UserViewSet(viewsets.ModelViewSet):
                 user = existing_user
                 code = str(random.randint(100000, 999999))
                 user.verification_code = code
+                user.verification_code_expires_at = timezone.now() + timedelta(minutes=15)
                 user.save()
                 
-                success, error = send_verification_email(user.email, code)
+                success, error = EmailService.send_verification_email(user, code)
                 if not success:
                     print(f"Error sending email: {error}")
                 
@@ -88,10 +97,11 @@ class UserViewSet(viewsets.ModelViewSet):
             # Generate verification code
             code = str(random.randint(100000, 999999))
             user.verification_code = code
+            user.verification_code_expires_at = timezone.now() + timedelta(minutes=15)
             user.save()
             
             # Send email
-            success, error = send_verification_email(user.email, code)
+            success, error = EmailService.send_verification_email(user, code)
             if not success:
                 print(f"Error sending email: {error}")
                 # In production, might want to handle this better
@@ -118,6 +128,82 @@ class UserViewSet(viewsets.ModelViewSet):
     def logout(self, request):
         logout(request)
         return Response({'message': 'Logged out'})
+
+    @action(detail=False, methods=['post'])
+    def resend_verification(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response({'message': 'Email required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user = User.objects.get(email=email)
+            if user.is_active:
+                return Response({'message': 'User already verified'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            code = str(random.randint(100000, 999999))
+            user.verification_code = code
+            user.verification_code_expires_at = timezone.now() + timedelta(minutes=15)
+            user.save()
+            
+            success, error = EmailService.send_verification_email(user, code)
+            if not success:
+                 return Response({'message': 'Failed to send email'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            return Response({'message': 'Verification code resent'}, status=status.HTTP_200_OK)
+            
+        except User.DoesNotExist:
+            return Response({'message': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['post'])
+    def forgot_password(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response({'message': 'Email required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            user = User.objects.get(email=email)
+            code = str(random.randint(100000, 999999))
+            user.reset_password_code = code
+            user.reset_password_code_expires_at = timezone.now() + timedelta(minutes=15)
+            user.save()
+            
+            success, error = EmailService.send_password_reset_email(user, code)
+            if not success:
+                 return Response({'message': 'Failed to send email'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                 
+            return Response({'message': 'Password reset code sent'}, status=status.HTTP_200_OK)
+            
+        except User.DoesNotExist:
+            # For security, maybe don't reveal user existence, but for now:
+            return Response({'message': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['post'])
+    def reset_password(self, request):
+        email = request.data.get('email')
+        code = request.data.get('code')
+        new_password = request.data.get('new_password')
+        
+        if not email or not code or not new_password:
+            return Response({'message': 'Email, code, and new password required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            user = User.objects.get(email=email)
+            
+            if user.reset_password_code != code:
+                return Response({'message': 'Invalid reset code'}, status=status.HTTP_400_BAD_REQUEST)
+                
+            if user.reset_password_code_expires_at and timezone.now() > user.reset_password_code_expires_at:
+                return Response({'message': 'Reset code expired'}, status=status.HTTP_400_BAD_REQUEST)
+                
+            user.set_password(new_password)
+            user.reset_password_code = None
+            user.reset_password_code_expires_at = None
+            user.save()
+            
+            return Response({'message': 'Password reset successfully'}, status=status.HTTP_200_OK)
+            
+        except User.DoesNotExist:
+            return Response({'message': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()

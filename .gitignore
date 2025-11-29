@@ -20,3 +20,6 @@ api.db
 
 # Go workspace file
 go.work
+*.txt
+curl_output.txt
+test_output.txt
