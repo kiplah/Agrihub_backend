@@ -70,7 +70,7 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def signup(self, request):
         email = request.data.get('email')
-        existing_user = User.objects.filter(email=email).first()
+        existing_user = User.objects.filter(email__iexact=email).first()
 
         if existing_user:
             if existing_user.is_active:
@@ -115,7 +115,7 @@ class UserViewSet(viewsets.ModelViewSet):
         password = request.data.get('password')
         # Assuming username is email or we need to find user by email first
         try:
-            user_obj = User.objects.get(email=email)
+            user_obj = User.objects.get(email__iexact=email)
             user = authenticate(username=user_obj.username, password=password)
             if user:
                 login(request, user)
@@ -136,7 +136,7 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({'message': 'Email required'}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            user = User.objects.get(email=email)
+            user = User.objects.get(email__iexact=email)
             if user.is_active:
                 return Response({'message': 'User already verified'}, status=status.HTTP_400_BAD_REQUEST)
             
@@ -157,11 +157,12 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def forgot_password(self, request):
         email = request.data.get('email')
+        print(f"DEBUG: forgot_password received email: '{email}'")
         if not email:
             return Response({'message': 'Email required'}, status=status.HTTP_400_BAD_REQUEST)
             
         try:
-            user = User.objects.get(email=email)
+            user = User.objects.get(email__iexact=email)
             code = str(random.randint(100000, 999999))
             user.reset_password_code = code
             user.reset_password_code_expires_at = timezone.now() + timedelta(minutes=15)
@@ -187,7 +188,7 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({'message': 'Email, code, and new password required'}, status=status.HTTP_400_BAD_REQUEST)
             
         try:
-            user = User.objects.get(email=email)
+            user = User.objects.get(email__iexact=email)
             
             if user.reset_password_code != code:
                 return Response({'message': 'Invalid reset code'}, status=status.HTTP_400_BAD_REQUEST)

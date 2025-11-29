@@ -1,7 +1,7 @@
 import requests
 
 url = "http://127.0.0.1:8000/users/forgot_password/"
-payload = {"email": "kiplahvictor27@gmail.com"}
+payload = {"email": "KiPlAhViCtOr27@GmAiL.cOm"}
 
 try:
     response = requests.post(url, json=payload)
