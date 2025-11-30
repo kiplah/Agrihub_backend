@@ -13,6 +13,7 @@ from .serializers import (
 import requests
 import json
 import time
+import os
 from datetime import datetime
 import random
 from django.core.mail import send_mail
@@ -224,6 +225,11 @@ class ProductViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(user_id=user_id)
         if search:
             queryset = queryset.filter(name__icontains=search)
+        
+        category = self.request.query_params.get('category')
+        if category:
+            queryset = queryset.filter(category_name__iexact=category)
+            
         return queryset
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -330,6 +336,42 @@ class ReviewViewSet(viewsets.ModelViewSet):
         if product_id:
             queryset = queryset.filter(product_id=product_id)
         return queryset
+
+class SellerAboutViewSet(viewsets.ModelViewSet):
+    queryset = SellerAbout.objects.all()
+    serializer_class = SellerAboutSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def get_queryset(self):
+        queryset = SellerAbout.objects.all()
+        user_id = self.request.query_params.get('user_id')
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+        return queryset
+
+class ContactUsView(APIView):
+    def post(self, request):
+        name = request.data.get('name')
+        email = request.data.get('email')
+        message = request.data.get('message')
+        
+        if not name or not email or not message:
+            return Response({'error': 'Name, email, and message are required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Send email to admin
+        admin_email = os.getenv("BREVO_FROM_EMAIL") # Send to self/admin
+        subject = f"Contact Us Message from {name}"
+        content = f"Name: {name}<br>Email: {email}<br>Message:<br>{message}"
+        
+        success, error = EmailService._send_email(admin_email, subject, content)
+        
+        if success:
+            return Response({'message': 'Message sent successfully'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'Failed to send message'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ChatbotView(APIView):
     def post(self, request):

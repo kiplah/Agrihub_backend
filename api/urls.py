@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     UserViewSet, ProductViewSet, CategoryViewSet, 
-    OrderViewSet, ReviewViewSet, ChatbotView
+    OrderViewSet, ReviewViewSet, ChatbotView, SellerAboutViewSet, ContactUsView
 )
 
 router = DefaultRouter()
@@ -11,10 +11,12 @@ router.register(r'products', ProductViewSet)
 router.register(r'category', CategoryViewSet)
 router.register(r'order', OrderViewSet)
 router.register(r'review', ReviewViewSet)
+router.register(r'seller-about', SellerAboutViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
     path('api/chatbot', ChatbotView.as_view(), name='chatbot'),
+    path('api/contact-us/', ContactUsView.as_view(), name='contact-us'),
     # Custom auth routes if not using ViewSet actions directly or for convenience
     path('signup/', UserViewSet.as_view({'post': 'signup'}), name='signup'),
     path('verify/', UserViewSet.as_view({'post': 'verify'}), name='verify'),
