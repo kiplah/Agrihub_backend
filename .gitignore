@@ -4,6 +4,8 @@
 # Database
 *.db
 api.db
+# Django
+db.sqlite3
 
 # Go build files
 *.exe
@@ -23,3 +25,9 @@ go.work
 *.txt
 curl_output.txt
 test_output.txt
+
+# Python
+__pycache__/
+*.pyc
+
+
