@@ -19,5 +19,10 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('api.urls')),
+    # path('', include('api.urls')), # Deprecated
+    path('', include('users.urls')),
+    path('', include('products.urls')),
+    path('', include('orders.urls')),
+    path('', include('reviews.urls')),
+    path('api/', include('api.urls')), # Keep api for Chatbot or other misc
 ]
