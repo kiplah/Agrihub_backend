@@ -1,10 +1,10 @@
 import requests
 import json
 
-url = "http://127.0.0.1:8000/login"
+url = "http://127.0.0.1:8000/login/"
 payload = {
-    "email": "kiplahvictor27@gmail.com",
-    "password": "password123"
+    "email": "admin@agromart.com",
+    "password": "admin123"
 }
 headers = {
     "Content-Type": "application/json"

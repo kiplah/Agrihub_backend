@@ -7,7 +7,7 @@ import django
 sys.path.append('d:\\agric\\Agro-Mart\\backend_django')
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'agromart.settings')
 django.setup()
-from api.models import User
+from users.models import User
 
 base_url = "http://127.0.0.1:8000"
 email = "kiplahvictor27@gmail.com"
