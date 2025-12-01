@@ -11,7 +11,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'agromart.settings')
 # Setup Django
 django.setup()
 
-from api.models import User
+from users.models import User
 
 email = 'kiplahvictor27@gmail.com'
 users = User.objects.filter(email=email).order_by('-date_joined')

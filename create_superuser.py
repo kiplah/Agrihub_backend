@@ -4,7 +4,7 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'agromart.settings')
 django.setup()
 
-from api.models import User
+from users.models import User
 
 username = "admin"
 email = "admin@agromart.com"

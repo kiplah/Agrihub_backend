@@ -12,7 +12,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'agromart.settings')
 # Setup Django
 django.setup()
 
-from api.models import User
+from users.models import User
 
 if len(sys.argv) < 2:
     print("Usage: python check_verification_code.py <email>")
