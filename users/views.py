@@ -96,6 +96,7 @@ class UserViewSet(viewsets.ModelViewSet):
                 # In production, might want to handle this better
             
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        print(f"Signup Validation Errors: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['post'])
