@@ -16,6 +16,7 @@ try:
     user.is_staff = True
     user.is_superuser = True
     user.is_active = True
+    user.role = "admin"
     user.save()
     
     action = "Created" if created else "Updated"
