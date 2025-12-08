@@ -17,7 +17,10 @@ class ProductViewSet(viewsets.ModelViewSet):
         
         category = self.request.query_params.get('category')
         if category:
-            queryset = queryset.filter(category_name__iexact=category)
+            if category.isdigit():
+                queryset = queryset.filter(category__id=category)
+            else:
+                queryset = queryset.filter(category__name__iexact=category)
             
         return queryset
 
@@ -28,6 +31,10 @@ class CategoryViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = ProductCategory.objects.all()
         user_id = self.request.query_params.get('user_id')
+        
+        if self.action == 'list':
+             queryset = queryset.filter(parent__isnull=True)
+
         if user_id:
             queryset = queryset.filter(user_id=user_id)
         return queryset
