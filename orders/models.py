@@ -16,7 +16,17 @@ class Order(models.Model):
     phone_number = models.BigIntegerField()
     delivery_option = models.CharField(max_length=100)
     checkout_price = models.BigIntegerField()
-    order_status = models.CharField(max_length=50, default='pending')
+    quantity = models.IntegerField(default=1)
+    
+    ORDER_STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('shipped', 'Shipped'),
+        ('delivered', 'Delivered'),
+        ('cancelled', 'Cancelled'),
+        ('returned', 'Returned'),
+    )
+    order_status = models.CharField(max_length=50, choices=ORDER_STATUS_CHOICES, default='pending')
     payment_method = models.CharField(max_length=50)
     time = models.BigIntegerField() # Unix timestamp
 

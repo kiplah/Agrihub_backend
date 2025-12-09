@@ -15,6 +15,13 @@ class SellerAbout(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='seller_about')
     about = models.TextField()
     product_type = models.CharField(max_length=255, blank=True, null=True)
+    
+    # Store Profile Fields
+    store_name = models.CharField(max_length=255, blank=True, null=True)
+    logo = models.ImageField(upload_to='store_logos/', blank=True, null=True)
+    banner = models.ImageField(upload_to='store_banners/', blank=True, null=True)
+    phone_contact = models.CharField(max_length=20, blank=True, null=True)
+    is_verified = models.BooleanField(default=False)
 
     def __str__(self):
         return f"About {self.user.username}"

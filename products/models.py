@@ -40,5 +40,17 @@ class Product(models.Model):
     # Deprecated but kept for temporary compatibility if needed (can be removed later)
     # category_name = models.CharField(max_length=255, blank=True, null=True) 
 
+    # Analytics & Inventory
+    views = models.IntegerField(default=0)
+    STATUS_CHOICES = (
+        ('active', 'Active'),
+        ('pending', 'Pending Approval'),
+        ('rejected', 'Rejected'),
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    low_stock_threshold = models.IntegerField(default=10)
+    stock_quantity = models.IntegerField(default=0)
+    expiry_date = models.DateField(blank=True, null=True)
+
     def __str__(self):
         return self.name

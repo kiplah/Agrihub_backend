@@ -1,8 +1,10 @@
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db.models import Sum
+from django.db.models import Sum, F
 from .models import Order
+from products.models import Product
+from chat.models import Message
 from .serializers import OrderSerializer
 from datetime import datetime
 
@@ -25,14 +27,22 @@ class OrderViewSet(viewsets.ModelViewSet):
         orders = Order.objects.filter(seller_id=seller_id)
         total_orders = orders.count()
         revenue = orders.aggregate(Sum('checkout_price'))['checkout_price__sum'] or 0
-        active_orders = orders.exclude(order_status='completed').count()
-        total_sales = orders.filter(order_status='completed').aggregate(Sum('checkout_price'))['checkout_price__sum'] or 0
+        active_orders = orders.exclude(order_status__in=['delivered', 'cancelled', 'returned']).count()
+        total_sales = orders.filter(order_status='delivered').aggregate(Sum('checkout_price'))['checkout_price__sum'] or 0
         
+        # Low Stock
+        low_stock_count = Product.objects.filter(user_id=seller_id, stock_quantity__lte=F('low_stock_threshold')).count()
+        
+        # Unread Messages
+        unread_messages = Message.objects.filter(receiver_id=seller_id, is_read=False).count()
+
         return Response({
             'TotalOrders': total_orders,
             'Revenue': revenue,
             'ActiveOrders': active_orders,
-            'TotalSales': total_sales
+            'TotalSales': total_sales,
+            'LowStockAlerts': low_stock_count,
+            'UnreadMessages': unread_messages
         })
 
     @action(detail=False, methods=['get'], url_path='monthly-stats/(?P<seller_id>[^/.]+)')

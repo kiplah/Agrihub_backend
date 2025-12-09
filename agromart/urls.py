@@ -24,6 +24,8 @@ urlpatterns = [
     # path('', include('api.urls')), # Deprecated
     path('', include('users.urls')),
     path('', include('products.urls')),
+    path('chat/', include('chat.urls')),
+    path('wallet/', include('wallet.urls')),
     path('', include('orders.urls')),
     path('', include('reviews.urls')),
     path('api/', include('api.urls')), # Keep api for Chatbot or other misc
