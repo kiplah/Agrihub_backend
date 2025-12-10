@@ -45,12 +45,15 @@ class OrderViewSet(viewsets.ModelViewSet):
             'UnreadMessages': unread_messages
         })
 
+    @action(detail=False, methods=['get'], url_path='seller-orders/(?P<seller_id>[^/.]+)')
+    def seller_orders(self, request, seller_id=None):
+        orders = Order.objects.filter(seller_id=seller_id).order_by('-created_at')
+        serializer = self.get_serializer(orders, many=True)
+        return Response(serializer.data)
+
     @action(detail=False, methods=['get'], url_path='monthly-stats/(?P<seller_id>[^/.]+)')
     def monthly_stats(self, request, seller_id=None):
         orders = Order.objects.filter(seller_id=seller_id)
-        # Complex stats logic similar to Go implementation
-        # For brevity, implementing a simplified version or full version if needed
-        # This requires grouping by month/year which is easier in Python
         
         monthly_stats = {}
         yearly_stats = {}
@@ -63,18 +66,19 @@ class OrderViewSet(viewsets.ModelViewSet):
         for order in orders:
             dt = datetime.fromtimestamp(order.time)
             year = dt.year
-            month = dt.month
-            month_key = f"{year}-{month}"
+            month_num = dt.month
+            month_name = dt.strftime("%b") # Jan, Feb, etc.
+            month_key = f"{year}-{month_num}" # Keep key for sorting if needed, or just use name if unique per year
             
             # Monthly
             if month_key not in monthly_stats:
-                monthly_stats[month_key] = {'year': year, 'month': month, 'total_orders': 0, 'completed_orders': 0, 'total_revenue': 0}
+                monthly_stats[month_key] = {'year': year, 'month': month_name, 'month_num': month_num, 'total_orders': 0, 'completed_orders': 0, 'total_revenue': 0}
             monthly_stats[month_key]['total_orders'] += 1
             
             if order.order_status == 'completed':
                 monthly_stats[month_key]['completed_orders'] += 1
                 monthly_stats[month_key]['total_revenue'] += order.checkout_price
-                if year == current_year and month == current_month:
+                if year == current_year and month_num == current_month:
                     current_month_revenue += order.checkout_price
 
             # Yearly
@@ -88,9 +92,9 @@ class OrderViewSet(viewsets.ModelViewSet):
                 if year == current_year:
                     current_year_revenue += order.checkout_price
 
-        # Calculate growth (simplified)
-        monthly_results = list(monthly_stats.values())
-        yearly_results = list(yearly_stats.values())
+        # Sort monthly stats by year and month_num
+        monthly_results = sorted(list(monthly_stats.values()), key=lambda x: (x['year'], x['month_num']))
+        yearly_results = sorted(list(yearly_stats.values()), key=lambda x: x['year'])
         
         return Response({
             "monthly_stats": monthly_results,
