@@ -15,6 +15,7 @@ class ProductCategorySerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     category_details = ProductCategorySerializer(source='category', read_only=True)
     user = serializers.ReadOnlyField(source='user.username')
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
     category_name = serializers.CharField(write_only=True, required=False)
     
     class Meta:
