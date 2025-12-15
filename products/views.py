@@ -8,7 +8,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-        queryset = Product.objects.all()
+        queryset = Product.objects.all().select_related('category', 'user')
         user_id = self.request.query_params.get('user_id')
         search = self.request.query_params.get('search')
         if user_id:
@@ -33,7 +33,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = ProductCategorySerializer
 
     def get_queryset(self):
-        queryset = ProductCategory.objects.all()
+        queryset = ProductCategory.objects.all().prefetch_related('subcategories')
         user_id = self.request.query_params.get('user_id')
         
         if self.action == 'list':
