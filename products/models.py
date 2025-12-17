@@ -28,6 +28,8 @@ class Product(models.Model):
     quantity_available = models.CharField(max_length=100, blank=True, null=True)
     unit = models.CharField(max_length=50, blank=True, null=True) # e.g. Kg, Bag, Piece
     location = models.CharField(max_length=255, blank=True, null=True)
+    country_code = models.CharField(max_length=10, blank=True, null=True)
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
     delivery_options = models.CharField(max_length=255, blank=True, null=True)
     
     # Optional Fields
