@@ -25,6 +25,12 @@ class ProductViewSet(viewsets.ModelViewSet):
             
         return queryset
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            print(f"Product Creation Validation Errors: {serializer.errors}")
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
