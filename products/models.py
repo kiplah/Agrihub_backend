@@ -53,6 +53,7 @@ class Product(models.Model):
     low_stock_threshold = models.IntegerField(default=10)
     stock_quantity = models.IntegerField(default=0)
     expiry_date = models.DateField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
