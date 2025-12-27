@@ -110,10 +110,20 @@ class UserViewSet(viewsets.ModelViewSet):
             if user:
                 login(request, user)
                 refresh = RefreshToken.for_user(user)
+                
+                # Ensure role is set, default to admin for superusers if missing
+                role = user.role
+                if not role and user.is_superuser:
+                    role = 'admin'
+                    
+                user_data = UserSerializer(user).data
+                user_data['role'] = role # Ensure correct role is in user data
+
                 return Response({
                     'refresh': str(refresh),
                     'access': str(refresh.access_token),
-                    'user': UserSerializer(user).data
+                    'user': user_data,
+                    'role': role
                 })
         except User.DoesNotExist:
             pass

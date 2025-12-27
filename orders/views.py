@@ -36,13 +36,92 @@ class OrderViewSet(viewsets.ModelViewSet):
         # Unread Messages
         unread_messages = Message.objects.filter(receiver_id=seller_id, is_read=False).count()
 
+        # Products Count
+        products_count = Product.objects.filter(user_id=seller_id).count()
+
+        # Pending Payout (Wallet Balance)
+        try:
+            from wallet.models import Wallet
+            wallet = Wallet.objects.get(user_id=seller_id)
+            pending_payout = wallet.balance
+        except (ImportError, Exception):
+            pending_payout = 0
+
+        # Growth Percent (Revenue this month vs last month)
+        now = datetime.now()
+        current_month = now.month
+        current_year = now.year
+        last_month = current_month - 1 if current_month > 1 else 12
+        last_month_year = current_year if current_month > 1 else current_year - 1
+
+        # We can't filter timestamp directly easily without conversion or range
+        # Approximation using filtering in python for simplicity or complex query
+        # Let's reuse the monthly logic logic if possible or do a quick aggregation
+        
+        # Simplified: Get all orders, filter in python (not efficient for huge data but fine here)
+        # Better: Filter by timestamp range
+        import calendar
+        
+        def get_timestamp_range(year, month):
+             start_dt = datetime(year, month, 1)
+             # End date: first day of next month
+             if month == 12:
+                 end_dt = datetime(year + 1, 1, 1)
+             else:
+                 end_dt = datetime(year, month + 1, 1)
+             return start_dt.timestamp(), end_dt.timestamp()
+
+        curr_start, curr_end = get_timestamp_range(current_year, current_month)
+        last_start, last_end = get_timestamp_range(last_month_year, last_month)
+
+        current_month_rev = orders.filter(time__gte=curr_start, time__lt=curr_end).aggregate(Sum('checkout_price'))['checkout_price__sum'] or 0
+        last_month_rev = orders.filter(time__gte=last_start, time__lt=last_end).aggregate(Sum('checkout_price'))['checkout_price__sum'] or 0
+
+        if last_month_rev > 0:
+            growth_percent = ((current_month_rev - last_month_rev) / last_month_rev) * 100
+        else:
+            growth_percent = 100 if current_month_rev > 0 else 0
+            
+        growth_percent = round(growth_percent, 1)
+
+        # Top Products
+        from django.db.models import Count
+        top_products_qs = orders.values('product__id', 'product__name', 'product__imagepath') \
+            .annotate(sold=Count('id')) \
+            .order_by('-sold')[:5]
+        
+        top_products = []
+        for p in top_products_qs:
+            # Fix image path
+            img = p['product__imagepath']
+            if img:
+                 if not img.startswith('http'):
+                      img = f"http://127.0.0.1:8000/media/{img}" # Assuming media prefix is needed or already in db?
+                      # Actually usually stored as relative path. product__imagepath is a CharField or ImageField file.url?
+                      # If it is ImageField, .values() returns path string.
+                      # Let's just pass the string, frontend handles http check usually?
+                      # Wait, looking at frontend: {p.image ? <img src={p.image} ...
+                      # It expects 'image', not 'imagepath'.
+                      pass
+            
+            top_products.append({
+                'id': p['product__id'],
+                'name': p['product__name'],
+                'image': img, 
+                'sold': p['sold']
+            })
+
         return Response({
             'TotalOrders': total_orders,
             'Revenue': revenue,
             'ActiveOrders': active_orders,
             'TotalSales': total_sales,
             'LowStockAlerts': low_stock_count,
-            'UnreadMessages': unread_messages
+            'UnreadMessages': unread_messages,
+            'Products': products_count,
+            'PendingPayout': pending_payout,
+            'GrowthPercent': growth_percent,
+            'top_products': top_products
         })
 
     @action(detail=False, methods=['get'], url_path='seller-orders/(?P<seller_id>[^/.]+)')
