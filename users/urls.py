@@ -11,6 +11,7 @@ urlpatterns = [
     path('signup/', UserViewSet.as_view({'post': 'signup'}), name='signup'),
     path('verify/', UserViewSet.as_view({'post': 'verify'}), name='verify'),
     path('login/', UserViewSet.as_view({'post': 'login'}), name='login'),
+    path('google-login/', UserViewSet.as_view({'post': 'google_login'}), name='google-login'),
     path('logout/', UserViewSet.as_view({'post': 'logout'}), name='logout'),
     path('resend-verification/', UserViewSet.as_view({'post': 'resend_verification'}), name='resend-verification'),
     path('users/forgot_password/', UserViewSet.as_view({'post': 'forgot_password'}), name='forgot-password'),

@@ -211,6 +211,101 @@ class UserViewSet(viewsets.ModelViewSet):
         except User.DoesNotExist:
             return Response({'message': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
+    @action(detail=False, methods=['post'])
+    def google_login(self, request):
+        access_token = request.data.get('access_token')
+        role = request.data.get('role', 'buyer')
+        
+        if not access_token:
+            return Response({'error': 'Access token is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        import requests
+        
+        try:
+            response = requests.get(
+                'https://www.googleapis.com/oauth2/v3/userinfo',
+                params={'access_token': access_token},
+                timeout=10
+            )
+        except requests.RequestException as e:
+            return Response({'error': f'Failed to connect to Google: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if response.status_code != 200:
+            return Response({'error': 'Invalid access token'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        user_info = response.json()
+        email = user_info.get('email')
+        
+        if not email:
+            return Response({'error': 'Email not provided by Google'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        first_name = user_info.get('given_name', '')
+        last_name = user_info.get('family_name', '')
+        
+        user = User.objects.filter(email__iexact=email).first()
+        created = False
+        
+        if not user:
+            username = email.split('@')[0]
+            original_username = username
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{original_username}{counter}"
+                counter += 1
+                
+            user = User.objects.create(
+                username=username,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                role=role,
+                is_active=True
+            )
+            user.set_unusable_password()
+            user.save()
+            created = True
+            
+            if role == 'seller':
+                SellerAbout.objects.get_or_create(
+                    user=user,
+                    defaults={
+                        'about': 'About me...',
+                        'store_name': f"{first_name}'s Store" if first_name else "My Store",
+                        'is_verified': False
+                    }
+                )
+        else:
+            if not user.is_active:
+                user.is_active = True
+                user.save()
+                
+            if not user.role:
+                user.role = role
+                user.save()
+                
+            if user.role == 'seller':
+                SellerAbout.objects.get_or_create(
+                    user=user,
+                    defaults={
+                        'about': 'About me...',
+                        'store_name': f"{user.first_name}'s Store" if user.first_name else f"{user.username}'s Store",
+                        'is_verified': False
+                    }
+                )
+                
+        refresh = RefreshToken.for_user(user)
+        
+        user_data = UserSerializer(user).data
+        user_data['role'] = user.role
+        
+        return Response({
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+            'user': user_data,
+            'role': user.role,
+            'created': created
+        }, status=status.HTTP_200_OK)
+
 class SellerAboutViewSet(viewsets.ModelViewSet):
     queryset = SellerAbout.objects.all()
     serializer_class = SellerAboutSerializer
