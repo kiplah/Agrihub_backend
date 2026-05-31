@@ -181,3 +181,74 @@ class OrderViewSet(viewsets.ModelViewSet):
             "current_month_revenue": current_month_revenue,
             "current_year_revenue": current_year_revenue,
         })
+
+    @action(detail=False, methods=['get'], url_path='buyer-stats/(?P<buyer_id>[^/.]+)')
+    def buyer_stats(self, request, buyer_id=None):
+        orders = Order.objects.filter(buyer_id=buyer_id)
+        total_orders = orders.count()
+        total_spent = orders.aggregate(Sum('checkout_price'))['checkout_price__sum'] or 0
+        active_orders = orders.exclude(order_status__in=['delivered', 'cancelled', 'returned']).count()
+        
+        distinct_addresses = orders.values('shipping_address').distinct().count()
+        saved_addresses = max(distinct_addresses, 1) if total_orders > 0 else 0
+        
+        spending_by_day = [0] * 7
+        now_ts = datetime.now().timestamp()
+        seven_days_ago = now_ts - (7 * 24 * 3600)
+        
+        recent_orders = orders.filter(time__gte=seven_days_ago)
+        for order in recent_orders:
+            try:
+                dt = datetime.fromtimestamp(order.time)
+                day_idx = dt.weekday()
+                spending_by_day[day_idx] += order.checkout_price
+            except Exception:
+                pass
+                
+        if sum(spending_by_day) == 0:
+            for order in orders:
+                try:
+                    dt = datetime.fromtimestamp(order.time)
+                    day_idx = dt.weekday()
+                    spending_by_day[day_idx] += order.checkout_price
+                except Exception:
+                    pass
+
+        latest_active_order = orders.exclude(order_status__in=['delivered', 'cancelled', 'returned']).order_by('-time').first()
+        tracking_order = None
+        if latest_active_order:
+            tracking_order = {
+                'id': latest_active_order.id,
+                'product_name': latest_active_order.product.name,
+                'status': latest_active_order.order_status,
+                'checkout_price': latest_active_order.checkout_price,
+                'quantity': latest_active_order.quantity,
+                'time': latest_active_order.time
+            }
+        else:
+            latest_order = orders.order_by('-time').first()
+            if latest_order:
+                tracking_order = {
+                    'id': latest_order.id,
+                    'product_name': latest_order.product.name,
+                    'status': latest_order.order_status,
+                    'checkout_price': latest_order.checkout_price,
+                    'quantity': latest_order.quantity,
+                    'time': latest_order.time
+                }
+
+        return Response({
+            'TotalOrders': total_orders,
+            'TotalSpent': total_spent,
+            'ActiveOrders': active_orders,
+            'SavedAddresses': saved_addresses,
+            'SpendingByDay': spending_by_day,
+            'TrackingOrder': tracking_order
+        })
+
+    @action(detail=False, methods=['get'], url_path='buyer-orders/(?P<buyer_id>[^/.]+)')
+    def buyer_orders(self, request, buyer_id=None):
+        orders = Order.objects.filter(buyer_id=buyer_id).order_by('-time')
+        serializer = self.get_serializer(orders, many=True)
+        return Response(serializer.data)
+
