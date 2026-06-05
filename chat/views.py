@@ -28,7 +28,14 @@ class MessageViewSet(viewsets.ModelViewSet):
         user_ids = set(sent_to) | set(received_from)
         
         users = User.objects.filter(id__in=user_ids)
-        data = [{'id': u.id, 'username': u.username} for u in users]
+        data = []
+        for u in users:
+            unread_count = Message.objects.filter(sender=u, receiver=user, is_read=False).count()
+            data.append({
+                'id': u.id,
+                'username': u.username,
+                'unread_count': unread_count
+            })
         return Response(data)
 
     @action(detail=False, methods=['get'])
@@ -38,6 +45,9 @@ class MessageViewSet(viewsets.ModelViewSet):
             return Response({"error": "user_id param required"}, status=400)
             
         user = request.user
+        # Mark incoming messages as read when the thread is loaded
+        Message.objects.filter(sender_id=other_user_id, receiver=user, is_read=False).update(is_read=True)
+        
         messages = Message.objects.filter(
             (Q(sender=user) & Q(receiver_id=other_user_id)) |
             (Q(sender_id=other_user_id) & Q(receiver=user))
