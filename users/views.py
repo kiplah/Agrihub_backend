@@ -16,6 +16,19 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
+    def get_permissions(self):
+        if self.action in ['signup', 'verify', 'login', 'google_login', 'logout', 'resend_verification', 'forgot_password', 'reset_password']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return User.objects.none()
+        if user.is_staff or user.role == 'admin':
+            return User.objects.all()
+        return User.objects.filter(id=user.id)
+
     @action(detail=False, methods=['post'])
     def verify(self, request):
         email = request.data.get('email')

@@ -4,6 +4,7 @@ from .views import UserViewSet, SellerAboutViewSet, ContactUsView
 
 router = DefaultRouter()
 router.register(r'seller-about', SellerAboutViewSet)
+router.register(r'users', UserViewSet, basename='users')
 
 urlpatterns = [
     path('', include(router.urls)),
