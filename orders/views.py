@@ -188,6 +188,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         total_orders = orders.count()
         total_spent = orders.aggregate(Sum('checkout_price'))['checkout_price__sum'] or 0
         active_orders = orders.exclude(order_status__in=['delivered', 'cancelled', 'returned']).count()
+        unread_messages = Message.objects.filter(receiver_id=buyer_id, is_read=False).count()
         
         distinct_addresses = orders.values('shipping_address').distinct().count()
         saved_addresses = max(distinct_addresses, 1) if total_orders > 0 else 0
@@ -243,7 +244,8 @@ class OrderViewSet(viewsets.ModelViewSet):
             'ActiveOrders': active_orders,
             'SavedAddresses': saved_addresses,
             'SpendingByDay': spending_by_day,
-            'TrackingOrder': tracking_order
+            'TrackingOrder': tracking_order,
+            'UnreadMessages': unread_messages
         })
 
     @action(detail=False, methods=['get'], url_path='buyer-orders/(?P<buyer_id>[^/.]+)')
@@ -251,4 +253,71 @@ class OrderViewSet(viewsets.ModelViewSet):
         orders = Order.objects.filter(buyer_id=buyer_id).order_by('-time')
         serializer = self.get_serializer(orders, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], url_path='new-order')
+    def new_order(self, request):
+        data = request.data.copy()
+        # Map camelCase keys and ID keys to snake_case models
+        mappings = {
+            'buyerId': 'buyer',
+            'sellerId': 'seller',
+            'productId': 'product',
+            'buyer_id': 'buyer',
+            'seller_id': 'seller',
+            'product_id': 'product',
+            'shippingAddress': 'shipping_address',
+            'shipping_address': 'shipping_address',
+            'postalCode': 'postal_code',
+            'postal_code': 'postal_code',
+            'phoneNumber': 'phone_number',
+            'phone_number': 'phone_number',
+            'deliveryOption': 'delivery_option',
+            'delivery_option': 'delivery_option',
+            'checkoutPrice': 'checkout_price',
+            'checkout_price': 'checkout_price',
+            'orderStatus': 'order_status',
+            'order_status': 'order_status',
+            'paymentMethod': 'payment_method',
+            'payment_method': 'payment_method',
+        }
+        for k, v in mappings.items():
+            if k in data and v not in data:
+                data[v] = data[k]
+                
+        serializer = self.get_serializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    @action(detail=False, methods=['put'], url_path='update-status/(?P<pk>[^/.]+)')
+    def update_status(self, request, pk=None):
+        try:
+            order = Order.objects.get(pk=pk)
+        except Order.DoesNotExist:
+            return Response({'error': 'Order not found'}, status=404)
+        
+        status_val = request.data.get('orderStatus') or request.data.get('order_status')
+        if not status_val:
+            return Response({'error': 'Status value required'}, status=400)
+            
+        order.order_status = status_val
+        order.save()
+        
+        return Response({
+            'id': order.id,
+            'orderStatus': order.order_status,
+            'order_status': order.order_status
+        })
+
+    @action(detail=False, methods=['delete'], url_path='delete-order/(?P<pk>[^/.]+)')
+    def delete_order(self, request, pk=None):
+        try:
+            order = Order.objects.get(pk=pk)
+            order_id = order.id
+            order.delete()
+            return Response({'message': 'Order deleted successfully', 'id': order_id}, status=200)
+        except Order.DoesNotExist:
+            return Response({'error': 'Order not found'}, status=404)
+
 
