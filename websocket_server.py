@@ -1,26 +1,48 @@
 import asyncio
 import json
-import sqlite3
 import os
 import datetime
 from urllib.parse import urlparse, parse_qs
 import websockets
 
-PORT = 8081
+PORT = int(os.environ.get("PORT", 8081))
+HOST = os.environ.get("HOST", "0.0.0.0")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "db.sqlite3")
 
 # Map user_id (str) to a set of active WebSocket connections
 active_connections = {}
 
+# Check database configuration
+DATABASE_URL = os.environ.get("DATABASE_URL")
+IS_POSTGRES = False
+
+if DATABASE_URL and (DATABASE_URL.startswith("postgres://") or DATABASE_URL.startswith("postgresql://")):
+    IS_POSTGRES = True
+    print("WebSocket Server configured for PostgreSQL.")
+else:
+    print(f"WebSocket Server configured for SQLite: {DB_PATH}")
+
+def get_db_connection():
+    if IS_POSTGRES:
+        import psycopg2
+        return psycopg2.connect(DATABASE_URL)
+    else:
+        import sqlite3
+        return sqlite3.connect(DB_PATH)
+
 def get_username(user_id):
-    """Fetch username for a given user ID from sqlite database."""
+    """Fetch username for a given user ID from database."""
     if not user_id:
         return "Unknown"
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("SELECT username FROM users_user WHERE id = ?", (user_id,))
+        query = "SELECT username FROM users_user WHERE id = ?"
+        params = (user_id,)
+        if IS_POSTGRES:
+            query = query.replace('?', '%s')
+        cur.execute(query, params)
         row = cur.fetchone()
         conn.close()
         if row:
@@ -30,19 +52,26 @@ def get_username(user_id):
     return "Unknown"
 
 def save_message_to_db(sender_id, receiver_id, content):
-    """Save message to Django sqlite database and return message details."""
+    """Save message to Django database and return message details."""
     timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
     is_read = False
     
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO chat_message (content, timestamp, is_read, receiver_id, sender_id) VALUES (?, ?, ?, ?, ?)",
-            (content, timestamp, is_read, int(receiver_id), int(sender_id))
-        )
+        
+        query = "INSERT INTO chat_message (content, timestamp, is_read, receiver_id, sender_id) VALUES (?, ?, ?, ?, ?)"
+        params = (content, timestamp, is_read, int(receiver_id), int(sender_id))
+        
+        if IS_POSTGRES:
+            query = query.replace('?', '%s') + " RETURNING id"
+            cur.execute(query, params)
+            msg_id = cur.fetchone()[0]
+        else:
+            cur.execute(query, params)
+            msg_id = cur.lastrowid
+            
         conn.commit()
-        msg_id = cur.lastrowid
         conn.close()
         
         sender_username = get_username(sender_id)
@@ -136,8 +165,8 @@ async def handler(websocket):
             print(f"User {sender_id} disconnected. Active connections for {sender_id}: {len(active_connections.get(sender_id, []))}")
 
 async def main():
-    print(f"Starting WebSocket server on ws://localhost:{PORT}")
-    async with websockets.serve(handler, "localhost", PORT):
+    print(f"Starting WebSocket server on ws://{HOST}:{PORT}")
+    async with websockets.serve(handler, HOST, PORT):
         await asyncio.Future()  # run forever
 
 if __name__ == "__main__":
