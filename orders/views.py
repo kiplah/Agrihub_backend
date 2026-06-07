@@ -126,7 +126,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='seller-orders/(?P<seller_id>[^/.]+)')
     def seller_orders(self, request, seller_id=None):
-        orders = Order.objects.filter(seller_id=seller_id).order_by('-created_at')
+        orders = Order.objects.filter(seller_id=seller_id).order_by('-time')
         serializer = self.get_serializer(orders, many=True)
         return Response(serializer.data)
 
