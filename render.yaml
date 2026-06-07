@@ -1,0 +1,34 @@
+services:
+  # Django Backend API
+  - type: web
+    name: agromart-backend
+    env: python
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate"
+    startCommand: "gunicorn agromart.wsgi:application"
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: "*"
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.10.12"
+
+  # Real-time WebSocket Server
+  - type: web
+    name: agromart-websocket
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python websocket_server.py"
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.10.12"
