@@ -23,6 +23,7 @@ db.sqlite3
 # Go workspace file
 go.work
 *.txt
+!requirements.txt
 curl_output.txt
 test_output.txt
 

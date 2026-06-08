@@ -95,7 +95,12 @@ def save_message_to_db(sender_id, receiver_id, content):
 
 async def handler(websocket):
     # Parse sender ID and receiver ID from connection URL query params
-    query_params = parse_qs(urlparse(websocket.path).query)
+    path_str = ""
+    if hasattr(websocket, "request") and hasattr(websocket.request, "path"):
+        path_str = websocket.request.path
+    elif hasattr(websocket, "path"):
+        path_str = websocket.path
+    query_params = parse_qs(urlparse(path_str).query)
     sender_id = query_params.get("senderID", [None])[0]
     
     if not sender_id:
