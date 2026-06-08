@@ -30,14 +30,20 @@ class OrderViewSet(viewsets.ModelViewSet):
         active_orders = orders.exclude(order_status__in=['delivered', 'cancelled', 'returned']).count()
         total_sales = orders.filter(order_status='delivered').aggregate(Sum('checkout_price'))['checkout_price__sum'] or 0
         
-        # Low Stock
-        low_stock_count = Product.objects.filter(user_id=seller_id, stock_quantity__lte=F('low_stock_threshold')).count()
+        # Low Stock & Products Count
+        products = Product.objects.filter(user_id=seller_id)
+        products_count = products.count()
+        low_stock_count = 0
+        for p in products:
+            try:
+                qty = int(p.stock_quantity or 0)
+                if qty <= p.low_stock_threshold:
+                    low_stock_count += 1
+            except (ValueError, TypeError):
+                pass
         
         # Unread Messages
         unread_messages = Message.objects.filter(receiver_id=seller_id, is_read=False).count()
-
-        # Products Count
-        products_count = Product.objects.filter(user_id=seller_id).count()
 
         # Pending Payout (Wallet Balance)
         try:
